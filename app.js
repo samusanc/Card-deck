@@ -194,6 +194,14 @@ class GameManager {
     this.btnExpandDeck = document.getElementById('btn-expand-deck');
     this.btnModalMenu = document.getElementById('btn-modal-menu');
     
+    // Progress Overlay Elements
+    this.btnProgress = document.getElementById('btn-progress');
+    this.progressModal = document.getElementById('progress-modal');
+    this.btnCloseProgress = document.getElementById('btn-close-progress');
+    this.progNumLearned = document.getElementById('prog-num-learned');
+    this.progNumMissing = document.getElementById('prog-num-missing');
+    this.deckList = document.getElementById('deck-list');
+    
     // Buttons
     this.btnStart = document.getElementById('btn-start');
     this.btnRestart = document.getElementById('btn-restart');
@@ -223,6 +231,10 @@ class GameManager {
     this.btnMenu.addEventListener('click', () => { this.applySRS(); this.showScreen('start'); });
     this.btnQuit.addEventListener('click', () => this.endGame());
     this.btnMute.addEventListener('click', () => this.sound.toggleMute());
+    
+    // Progress Event Listeners
+    this.btnProgress.addEventListener('click', () => this.showProgressModal());
+    this.btnCloseProgress.addEventListener('click', () => this.hideProgressModal());
     
     // Review Event Listener
     this.btnNextReview.addEventListener('click', () => this.nextReviewCard());
@@ -281,6 +293,66 @@ class GameManager {
     } else if (screenName === 'gameover') {
       this.gameOverScreen.classList.add('active');
     }
+  }
+
+  showProgressModal() {
+    this.sound.playTap();
+    this.progressModal.classList.add('active');
+    
+    // Determine learned set
+    // If they have started a game, use this.sessionPairs. Otherwise, use localStorage weights existence.
+    const hasActiveGame = this.sessionPairs && this.sessionPairs.length > 0;
+    
+    let learnedCount = 0;
+    this.deckList.innerHTML = '';
+    
+    this.wordsPool.forEach(word => {
+      const isLearned = hasActiveGame 
+        ? this.sessionPairs.some(p => p.es === word.es)
+        : (this.srsWeights[word.es] !== undefined);
+        
+      if (isLearned) {
+        learnedCount++;
+      }
+      
+      const row = document.createElement('div');
+      row.className = 'deck-row';
+      
+      const wordsDiv = document.createElement('div');
+      wordsDiv.className = 'deck-row-words';
+      
+      const esSpan = document.createElement('span');
+      esSpan.className = 'deck-row-es';
+      esSpan.textContent = word.es;
+      
+      const jaSpan = document.createElement('span');
+      jaSpan.className = 'deck-row-ja';
+      jaSpan.textContent = word.ja;
+      
+      wordsDiv.appendChild(esSpan);
+      wordsDiv.appendChild(jaSpan);
+      
+      const badge = document.createElement('span');
+      if (isLearned) {
+        badge.className = 'deck-badge learned';
+        badge.textContent = `${word.points} pts`;
+      } else {
+        badge.className = 'deck-badge locked';
+        badge.textContent = 'LOCKED';
+      }
+      
+      row.appendChild(wordsDiv);
+      row.appendChild(badge);
+      this.deckList.appendChild(row);
+    });
+    
+    this.progNumLearned.textContent = learnedCount;
+    this.progNumMissing.textContent = this.wordsPool.length - learnedCount;
+  }
+
+  hideProgressModal() {
+    this.sound.playTap();
+    this.progressModal.classList.remove('active');
   }
 
   startGame() {

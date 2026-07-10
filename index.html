@@ -45,6 +45,7 @@
       </div>
       
       <button id="btn-start" class="btn btn-primary" aria-label="Start Game">START GAME</button>
+      <button id="btn-progress" class="btn btn-secondary" aria-label="View Progress" style="margin-top: 12px; margin-bottom: 20px;">DECK PROGRESS</button>
     </section>
     
     <!-- REVIEW SCREEN -->
@@ -190,6 +191,37 @@
       </div>
     </section>
     
+    <!-- PROGRESS MODAL -->
+    <div id="progress-modal" class="modal-overlay">
+      <div class="modal-card progress-card">
+        <h3 class="modal-title">DECK PROGRESS</h3>
+        
+        <div class="progress-stats">
+          <div class="stat-box">
+            <span class="stat-num" id="prog-num-learned">0</span>
+            <span class="stat-lbl">Learned</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-num" id="prog-num-missing">0</span>
+            <span class="stat-lbl">Remaining</span>
+          </div>
+        </div>
+
+        <div class="deck-list-container">
+          <div class="deck-list-header">
+            <span>Card Pair / Weight</span>
+          </div>
+          <div id="deck-list" class="deck-list">
+            <!-- Dynamically populated card rows -->
+          </div>
+        </div>
+        
+        <div class="modal-actions">
+          <button id="btn-close-progress" class="btn btn-primary">CLOSE</button>
+        </div>
+      </div>
+    </div>
+
   </div>
   
   <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
