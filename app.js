@@ -291,6 +291,7 @@ class GameManager {
     this.selectedCard = null;
     this.isAnimating = false;
     this.mismatchedPairs = new Set();
+    this.currentPairsCount = 5; // Starts at 5
     
     this.scoreVal.textContent = this.score;
     this.bestVal.textContent = this.bestScore;
@@ -354,7 +355,14 @@ class GameManager {
     } else {
       // Add reviewed cards to the session deck
       this.sessionPairs = [...this.sessionPairs, ...this.newReviewPairs];
-      this.currentPairsCount = this.sessionPairs.length;
+      
+      // If we just started the session, currentPairsCount is 5.
+      // Otherwise, we increment the currentPairsCount since a new level was cleared!
+      if (this.sessionPairs.length === 5) {
+        this.currentPairsCount = 5;
+      } else {
+        this.currentPairsCount++;
+      }
       
       // Start matching phase
       this.showScreen('play');
@@ -364,7 +372,12 @@ class GameManager {
 
   expandDeck() {
     this.expandModal.classList.remove('active');
-    this.startReviewSession();
+    if (this.currentPairsCount < this.sessionPairs.length) {
+      this.currentPairsCount++;
+      this.generateRound();
+    } else {
+      this.startReviewSession();
+    }
   }
 
   generateRound() {
@@ -381,16 +394,13 @@ class GameManager {
     this.esDeck.classList.add('shuffling');
     this.jaDeck.classList.add('shuffling');
     
-    // Create level-specific deal order by shuffling our session pairs
-    this.dealOrderPairs = this.shuffleArray([...this.sessionPairs]);
-    this.nextPairDealIndex = 0;
+    // Select a shuffled subset of sessionPairs for this round
+    const shuffledPool = this.shuffleArray([...this.sessionPairs]);
+    this.activeRoundPairs = shuffledPool.slice(0, this.currentPairsCount);
+    
     this.matchedPairsCount = 0;
     this.mismatchedPairs = new Set();
-    this.matchedSessionIndexes = new Set();
-    
-    // Display at most 5 pairs on screen at once
-    const initialPairsCount = Math.min(5, this.sessionPairs.length);
-    this.currentPairsCount = initialPairsCount; // keeps layout math aligned
+    this.matchedWords = new Set();
     
     // 2. Wait for shuffle to complete (700ms) before dealing
     setTimeout(() => {
@@ -400,24 +410,20 @@ class GameManager {
       const esCardData = [];
       const jaCardData = [];
       
-      // Pull first 5 pairs (or L pairs) to put on table
-      for (let i = 0; i < initialPairsCount; i++) {
-        const pair = this.dealOrderPairs[i];
+      this.activeRoundPairs.forEach((pair, index) => {
         esCardData.push({
-          id: `es-${i}`,
+          id: `es-${index}`,
           text: pair.es,
           lang: 'es',
-          pairIndex: i
+          pairIndex: index
         });
         jaCardData.push({
-          id: `ja-${i}`,
+          id: `ja-${index}`,
           text: pair.ja,
           lang: 'ja',
-          pairIndex: i
+          pairIndex: index
         });
-      }
-      
-      this.nextPairDealIndex = initialPairsCount;
+      });
       
       // Shuffle lists independently so they are not lined up in matching slots
       const shuffledEs = this.shuffleArray(esCardData);
@@ -436,8 +442,8 @@ class GameManager {
         this.jaGrid.appendChild(cardDiv);
       });
       
-      // Track peak stats (this counts total cards in level)
-      const totalCards = this.sessionPairs.length * 2;
+      // Track peak stats (this counts total cards in active round)
+      const totalCards = this.currentPairsCount * 2;
       if (totalCards > this.peakCardsCount) {
         this.peakCardsCount = totalCards;
       }
@@ -450,7 +456,7 @@ class GameManager {
       const jaCards = Array.from(this.jaGrid.querySelectorAll('.card'));
       const cardsToDeal = [];
       
-      for (let i = 0; i < initialPairsCount; i++) {
+      for (let i = 0; i < this.currentPairsCount; i++) {
         if (esCards[i]) cardsToDeal.push({ div: esCards[i], deck: this.esDeck });
         if (jaCards[i]) cardsToDeal.push({ div: jaCards[i], deck: this.jaDeck });
       }
@@ -493,8 +499,8 @@ class GameManager {
           item.div.style.transform = '';
         });
         
-        // Timer limit is 3 seconds per pair in the level (e.g. 5 pairs = 15 seconds)
-        this.timeLimit = this.sessionPairs.length * 3000;
+        // Timer limit is 3 seconds per pair on the board (e.g. 5 pairs = 15 seconds)
+        this.timeLimit = this.currentPairsCount * 3000;
         this.timeRemaining = this.timeLimit;
         this.startTimer();
       }, totalDealDuration);
@@ -654,7 +660,12 @@ class GameManager {
       this.score += 1;
       this.scoreVal.textContent = this.score;
       this.matchedPairsCount += 1;
-      this.matchedSessionIndexes.add(firstCard.data.pairIndex);
+      
+      // Track matched Spanish word for SRS points
+      const matchedPair = this.activeRoundPairs[firstCard.data.pairIndex];
+      if (matchedPair) {
+        this.matchedWords.add(matchedPair.es);
+      }
       
       if (this.score > this.bestScore) {
         this.bestScore = this.score;
@@ -662,78 +673,29 @@ class GameManager {
         this.bestVal.textContent = this.bestScore;
       }
       
-      // Check if there is a new card pair to deal from our pool
-      let nextPair = null;
-      let nextIndex = 0;
-      if (this.nextPairDealIndex < this.dealOrderPairs.length) {
-        nextPair = this.dealOrderPairs[this.nextPairDealIndex];
-        nextIndex = this.nextPairDealIndex;
-        this.nextPairDealIndex++;
-      }
-      
-      setTimeout(() => {
-        if (nextPair) {
-          const esCardDiv = firstCard.lang === 'es' ? firstCard.div : secondCard.div;
-          const jaCardDiv = firstCard.lang === 'ja' ? firstCard.div : secondCard.div;
-          
-          // Update texts
-          esCardDiv.querySelector('.card-text').textContent = nextPair.es;
-          jaCardDiv.querySelector('.card-text').textContent = nextPair.ja;
-          
-          // Re-update card data references
-          esCardDiv.cardData = { id: esCardDiv.id, text: nextPair.es, lang: 'es', pairIndex: nextIndex };
-          jaCardDiv.cardData = { id: jaCardDiv.id, text: nextPair.ja, lang: 'ja', pairIndex: nextIndex };
-          
-          // Reset classes and deal again
-          const dealAgain = (cDiv, deckDiv) => {
-            // Revert transform temporarily to calculate raw layout slot coordinates
-            cDiv.style.transition = 'none';
-            cDiv.style.transform = '';
-            cDiv.classList.remove('matched', 'selected');
-            cDiv.style.opacity = '1';
-            
-            // Force reflow so browser registers untransformed position
-            cDiv.offsetHeight;
-            
-            const cardRect = cDiv.getBoundingClientRect();
-            const deckRect = deckDiv.getBoundingClientRect();
-            const deltaX = deckRect.left - cardRect.left;
-            const deltaY = deckRect.top - cardRect.top;
-            
-            // Place it back at the deck stack
-            cDiv.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-            cDiv.classList.add('face-down');
-            
-            // Force reflow
-            cDiv.offsetHeight;
-            
-            // Deal it to the table with animation
-            cDiv.style.transition = 'transform 0.65s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.5s ease';
-            cDiv.style.transform = 'translate(0px, 0px)';
-            cDiv.classList.remove('face-down');
-          };
-          
-          dealAgain(esCardDiv, this.esDeck);
-          dealAgain(jaCardDiv, this.jaDeck);
-        }
-      }, 1000);
-      
-      const allMatched = this.matchedPairsCount === this.dealOrderPairs.length;
+      const allMatched = this.matchedPairsCount === this.currentPairsCount;
       
       if (allMatched) {
         this.stopTimer();
         
-        // Show Level Clear Modal
+        // Show Level Clear Modal with custom text based on deck completion
         setTimeout(() => {
           this.isAnimating = false;
           this.expandModal.classList.add('active');
-          this.modalDesc.textContent = `You successfully matched all ${this.sessionPairs.length} pairs!`;
-        }, 1100);
+          
+          if (this.currentPairsCount < this.sessionPairs.length) {
+            this.btnExpandDeck.textContent = "PLAY NEXT LEVEL (+1 CARD)";
+            this.modalDesc.textContent = `Round Cleared! Ready to play with ${this.currentPairsCount + 1} cards?`;
+          } else {
+            this.btnExpandDeck.textContent = "REVIEW 5 MORE";
+            this.modalDesc.textContent = "You matched all learned cards! Expand your deck?";
+          }
+        }, 650);
       } else {
         setTimeout(() => {
           this.selectedCard = null;
           this.isAnimating = false;
-        }, nextPair ? 1700 : 300); // give longer animate buffer if dealing new card
+        }, 300);
       }
       
     } else {
@@ -741,9 +703,11 @@ class GameManager {
       this.isAnimating = true;
       this.sound.playMismatch();
       
-      // Track mismatch cards indices
-      this.mismatchedPairs.add(firstCard.data.pairIndex);
-      this.mismatchedPairs.add(secondCard.data.pairIndex);
+      // Track mismatch cards Spanish words for SRS points
+      const firstMismatchedPair = this.activeRoundPairs[firstCard.data.pairIndex];
+      const secondMismatchedPair = this.activeRoundPairs[secondCard.data.pairIndex];
+      if (firstMismatchedPair) this.mismatchedPairs.add(firstMismatchedPair.es);
+      if (secondMismatchedPair) this.mismatchedPairs.add(secondMismatchedPair.es);
       
       firstCard.div.classList.add('shake');
       secondCard.div.classList.add('shake');
@@ -827,25 +791,25 @@ class GameManager {
   applySRS(completed = false) {
     // Loop through wordsPool to compute appearance points
     this.wordsPool.forEach(word => {
-      const sessionIndex = this.sessionPairs.findIndex(p => p.es === word.es);
+      const isActiveInRound = this.activeRoundPairs && this.activeRoundPairs.some(p => p.es === word.es);
       
-      if (sessionIndex !== -1) {
-        // Word was in active session
-        if (this.matchedSessionIndexes && this.matchedSessionIndexes.has(sessionIndex)) {
+      if (isActiveInRound) {
+        // Word was active in the current round
+        const wasMatched = this.matchedWords && this.matchedWords.has(word.es);
+        if (wasMatched) {
           // Matched!
-          if (this.mismatchedPairs.has(sessionIndex)) {
-            // Mismatched -> +3
+          const wasMismatched = this.mismatchedPairs && this.mismatchedPairs.has(word.es);
+          if (wasMismatched) {
             word.points += 3;
           } else {
-            // Clean match -> -1 (minimum limit -10)
             word.points = Math.max(-10, word.points - 1);
           }
         } else {
-          // Left on table (not matched when time ran out or quit) -> +2
+          // Left on the table (time ran out) -> +2
           word.points += 2;
         }
       } else {
-        // Unreviewed in this round -> +2
+        // Not in current round -> +2
         word.points += 2;
       }
     });
