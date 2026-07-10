@@ -328,6 +328,16 @@ class GameManager {
         word.points += 2;
       }
     });
+
+    // Log the selection and points details
+    console.log("=== SRS PRIORITY DECK SELECTION ===");
+    console.log("Sorted word pool weights:");
+    this.wordsPool.forEach(word => {
+      console.log(`- ${word.es}: ${word.points} pts`);
+    });
+    console.log("Selecting for review:", this.newReviewPairs.map(p => p.es).join(", "));
+    console.log(`Current Deck Size: ${this.sessionPairs.length} pairs`);
+    console.log("====================================");
     
     this.reviewIndex = 0;
     this.showScreen('review');
@@ -820,6 +830,14 @@ class GameManager {
       weights[word.es] = word.points;
     });
     localStorage.setItem('neon_match_srs_points', JSON.stringify(weights));
+
+    // Log SRS weights and active deck size for user diagnostics
+    console.log("=== SRS APPARANCE POINTS ===");
+    this.wordsPool.forEach(word => {
+      console.log(`- Card: [${word.es} / ${word.ja}] | Points: ${word.points}`);
+    });
+    console.log(`Active Deck Size: ${this.sessionPairs.length} pairs (${this.sessionPairs.length * 2} cards)`);
+    console.log("============================");
   }
 }
 
