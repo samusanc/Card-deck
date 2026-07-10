@@ -204,7 +204,8 @@ class GameManager {
     this.deckList = document.getElementById('deck-list');
     
     // Buttons
-    this.btnStart = document.getElementById('btn-start');
+    this.btnLearn = document.getElementById('btn-learn');
+    this.btnPractice = document.getElementById('btn-practice');
     this.btnRestart = document.getElementById('btn-restart');
     this.btnMenu = document.getElementById('btn-menu');
     this.btnMute = document.getElementById('btn-mute');
@@ -227,8 +228,9 @@ class GameManager {
     this.timerText = document.getElementById('timer-text');
     
     // Bind Event Listeners
-    this.btnStart.addEventListener('click', () => this.startGame());
-    this.btnRestart.addEventListener('click', () => this.startGame());
+    this.btnLearn.addEventListener('click', () => this.startLearnMode());
+    this.btnPractice.addEventListener('click', () => this.startPracticeMode());
+    this.btnRestart.addEventListener('click', () => this.startPracticeMode());
     this.btnMenu.addEventListener('click', () => { this.applySRS(); this.showScreen('start'); });
     this.btnQuit.addEventListener('click', () => this.endGame());
     this.btnMute.addEventListener('click', () => this.sound.toggleMute());
@@ -371,14 +373,14 @@ class GameManager {
     }
   }
 
-  startGame() {
+  startLearnMode() {
     this.sound.init(); // Activate AudioContext on user interaction
     this.score = 0;
     this.peakCardsCount = 0;
     this.selectedCard = null;
     this.isAnimating = false;
     this.mismatchedPairs = new Set();
-    this.currentPairsCount = 5; // Starts at 5
+    this.currentPairsCount = 5; // Play first 5 cards
     
     // Load previously learned cards from wordsPool (based on presence in srsWeights)
     this.sessionPairs = this.wordsPool.filter(word => this.srsWeights[word.es] !== undefined);
@@ -386,15 +388,34 @@ class GameManager {
     this.scoreVal.textContent = this.score;
     this.bestVal.textContent = this.bestScore;
     
+    // Always trigger review for 5 new cards in Learn mode
+    this.startReviewSession();
+  }
+
+  startPracticeMode() {
+    this.sound.init(); // Activate AudioContext on user interaction
+    
+    // Load previously learned cards from wordsPool (based on presence in srsWeights)
+    this.sessionPairs = this.wordsPool.filter(word => this.srsWeights[word.es] !== undefined);
+    
     if (this.sessionPairs.length >= 5) {
-      // They already have learned cards from past plays! Skip review and play!
-      console.log(`Resuming session with ${this.sessionPairs.length} learned cards.`);
+      this.score = 0;
+      this.peakCardsCount = 0;
+      this.selectedCard = null;
+      this.isAnimating = false;
+      this.mismatchedPairs = new Set();
+      this.currentPairsCount = 5; // Starts at 5 cards
+      
+      this.scoreVal.textContent = this.score;
+      this.bestVal.textContent = this.bestScore;
+      
+      console.log(`Starting Practice mode with ${this.sessionPairs.length} learned cards.`);
       this.showScreen('play');
       this.generateRound();
     } else {
-      // Fresh start / less than 5 cards. Start review session.
-      this.sessionPairs = []; // clear to ensure clean review session
-      this.startReviewSession();
+      // Not enough learned cards to practice yet! Auto-redirect to Learn mode.
+      alert("You need to learn at least 5 cards first! Redirecting to Learn Mode...");
+      this.startLearnMode();
     }
   }
 
