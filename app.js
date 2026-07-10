@@ -689,7 +689,7 @@ class GameManager {
             // Revert transform temporarily to calculate raw layout slot coordinates
             cDiv.style.transition = 'none';
             cDiv.style.transform = '';
-            cDiv.classList.remove('matched');
+            cDiv.classList.remove('matched', 'selected');
             cDiv.style.opacity = '1';
             
             // Force reflow so browser registers untransformed position
@@ -716,7 +716,7 @@ class GameManager {
           dealAgain(esCardDiv, this.esDeck);
           dealAgain(jaCardDiv, this.jaDeck);
         }
-      }, 600);
+      }, 1000);
       
       const allMatched = this.matchedPairsCount === this.dealOrderPairs.length;
       
@@ -728,12 +728,12 @@ class GameManager {
           this.isAnimating = false;
           this.expandModal.classList.add('active');
           this.modalDesc.textContent = `You successfully matched all ${this.sessionPairs.length} pairs!`;
-        }, 650);
+        }, 1100);
       } else {
         setTimeout(() => {
           this.selectedCard = null;
           this.isAnimating = false;
-        }, nextPair ? 1250 : 300); // give longer animate buffer if dealing new card
+        }, nextPair ? 1700 : 300); // give longer animate buffer if dealing new card
       }
       
     } else {
