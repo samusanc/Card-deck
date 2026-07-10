@@ -196,6 +196,7 @@ class GameManager {
     
     // Progress Overlay Elements
     this.btnProgress = document.getElementById('btn-progress');
+    this.btnResetProgress = document.getElementById('btn-reset-progress');
     this.progressModal = document.getElementById('progress-modal');
     this.btnCloseProgress = document.getElementById('btn-close-progress');
     this.progNumLearned = document.getElementById('prog-num-learned');
@@ -234,6 +235,7 @@ class GameManager {
     
     // Progress Event Listeners
     this.btnProgress.addEventListener('click', () => this.showProgressModal());
+    this.btnResetProgress.addEventListener('click', () => this.resetProgress());
     this.btnCloseProgress.addEventListener('click', () => this.hideProgressModal());
     
     // Review Event Listener
@@ -355,20 +357,45 @@ class GameManager {
     this.progressModal.classList.remove('active');
   }
 
+  resetProgress() {
+    this.sound.playTap();
+    const confirmed = confirm("Are you sure you want to reset all learned cards and progress?");
+    if (confirmed) {
+      localStorage.removeItem('neon_match_srs_points');
+      this.srsWeights = {};
+      this.wordsPool.forEach(word => {
+        word.points = 0;
+      });
+      this.sessionPairs = [];
+      alert("Progress successfully reset!");
+    }
+  }
+
   startGame() {
     this.sound.init(); // Activate AudioContext on user interaction
     this.score = 0;
-    this.sessionPairs = [];
     this.peakCardsCount = 0;
     this.selectedCard = null;
     this.isAnimating = false;
     this.mismatchedPairs = new Set();
     this.currentPairsCount = 5; // Starts at 5
     
+    // Load previously learned cards from wordsPool (based on presence in srsWeights)
+    this.sessionPairs = this.wordsPool.filter(word => this.srsWeights[word.es] !== undefined);
+    
     this.scoreVal.textContent = this.score;
     this.bestVal.textContent = this.bestScore;
     
-    this.startReviewSession();
+    if (this.sessionPairs.length >= 5) {
+      // They already have learned cards from past plays! Skip review and play!
+      console.log(`Resuming session with ${this.sessionPairs.length} learned cards.`);
+      this.showScreen('play');
+      this.generateRound();
+    } else {
+      // Fresh start / less than 5 cards. Start review session.
+      this.sessionPairs = []; // clear to ensure clean review session
+      this.startReviewSession();
+    }
   }
 
   startReviewSession() {
